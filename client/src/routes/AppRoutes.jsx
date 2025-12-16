@@ -5,10 +5,8 @@ function AppRoutes() {
   return (
     <>
       <Routes>
-        <Route path="api">
           <Route path="login" element={<Login/>} />
           <Route path="signup" element={<Signup/>} />
-        </Route>
       </Routes>
     </>
   );

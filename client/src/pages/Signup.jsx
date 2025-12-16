@@ -1,5 +1,7 @@
 import { useState } from "react";
 import bcrypt from "bcryptjs";
+import axios from "axios";
+import { generatePrivateKey } from "../utilities/Hashing";
 
 function Signup() {
   const [email, setEmail] = useState("");
@@ -11,29 +13,39 @@ function Signup() {
     setStatus("loading");
 
     try {
-      //hashing password at frontend only
-      const saltRounds = 10;
-      const hashed_pass = await bcrypt.hash(password, saltRounds);
 
+      //verifying nitk.edu id
       if (!email.endsWith("@nitk.edu.in")) {
         setStatus("invalid");
         return;
       }
 
-      // sending hashed password to server
-      const res = await fetch("http://localhost:4000/api/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+
+      //hashing password 
+      const saltRounds = 10;
+      const hashed_pass = await bcrypt.hash(password, saltRounds);
+
+
+      //generating private key
+      const private_key=await generatePrivateKey(email,hashed_pass,10)
+
+      //sending details to the backend
+      const res = await axios.post(
+        "http://localhost:4000/api/signup",
+        {
           email,
-          password: hashed_pass,
-        }),
-      });
+          password:hashed_pass,
+          private_key
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.msg || "Signup failed");
 
+      const data = res.data;
       setStatus("success");
+      console.log(data.msg);
     } catch (err) {
       console.error("Signup error:", err);
       setStatus("error");

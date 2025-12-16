@@ -1,6 +1,7 @@
-// LoginRecommended.jsx
 import { useState } from "react";
 import bcrypt from "bcryptjs";
+import axios from "axios";
+import { generatePrivateKey } from "../utilities/Hashing";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -12,33 +13,44 @@ function Login() {
     setStatus("loading");
 
     try {
-      //hashing password at frontend only
-      const saltRounds = 10;
-      const hashed_pass = await bcrypt.hash(password, saltRounds);
-
       if (!email.endsWith("@nitk.edu.in")) {
         setStatus("invalid");
         return;
       }
-      //sending details to the backend
-      const res = await fetch("http://localhost:4000/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.msg);
-      const valid = await bcrypt.compare(password, data.hashed_pass);
+
+      //hashing password
+      const saltRounds = 10;
+      const hashed_pass = await bcrypt.hash(password, saltRounds);
+
+      //generating private key to store in cookies
+      const private_key= await generatePrivateKey(email,hashed_pass,10)
+
+      //sending details to the backend
+      const res = await axios.post(
+        "http://localhost:4000/api/login",
+        {
+          email,
+          password:hashed_pass,
+          private_key,
+        },
+        {
+          withCredentials: true,
+        }
+      );
+
+      //Displaying the backend validation
+      const data =res.data;
+      const valid = data.valid;
+
       if (valid) {
         setStatus("success");
+      } else {
+        setStatus("error");
       }
-      else{setStatus("error")}
-      // localStorage.setItem("token", data.token);
+
     } catch (err) {
+      console.log("Error:",err)
       setStatus("error");
     }
   }
