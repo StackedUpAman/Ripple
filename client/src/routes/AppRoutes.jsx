@@ -1,12 +1,14 @@
-import Signup from "../pages/Signup";
-import Login from "../pages/Login";
-import {Route,Router,Routes} from "react-router-dom"
+import SignupForm from "../pages/Signup";
+import LoginForm from '../pages/Login';
+import Home from "../pages/Home";
+import {Route,Routes} from "react-router-dom"
 function AppRoutes() {
   return (
     <>
-      <Routes>
-          <Route path="login" element={<Login/>} />
-          <Route path="signup" element={<Signup/>} />
+      <Routes>          
+          <Route path="/" element={<Home/>} />
+          <Route path="/login" element={<LoginForm/>} />
+          <Route path="/signup" element={<SignupForm/>} />
       </Routes>
     </>
   );
