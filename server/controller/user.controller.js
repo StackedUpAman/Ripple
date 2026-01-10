@@ -1,9 +1,10 @@
 import bcrypt from "bcrypt"
 import sql from "../db/postgres.js";
+import { generateToken } from "../utilities/jwt.js";
 
-export async function handleSignup(req, res){
+export const handleSignup = async (req, res) => {
   try {
-    const { email, password, confirmPassword} = req.body;
+    const { email, password, confirmPassword} = req.body;    
     
     if(email == "" || password == "" || confirmPassword == ""){
       return res
@@ -39,20 +40,30 @@ export async function handleSignup(req, res){
     VALUES (${email}, ${hashedPassword}, ${private_key})
     `;
 
+    const token = generateToken(email);
+
+    res.cookie("auth_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     return res
-      .status(201)
-      .cookie("uid", private_key)
-      .json({ message: "User created", anion_key: private_key });
+      .status(201)      
+      .json({ 
+        message: "User created", 
+        anion_key: private_key
+     });
 
   } catch (err) {
-    console.error("Signup error:", err);
     return res
     .status(500)
     .json({ message: "Server error" });
   }
 }
 
-export async function handleLogin(req, res){
+export const handleLogin = async (req, res) => {
   const { email, password} = req.body;
 
   const [user] = await sql`
@@ -68,8 +79,6 @@ export async function handleLogin(req, res){
     .json({message: "User not found"});
   }
 
-  console.log(user);  
-
   const validPassword = await bcrypt.compare(password, user.password);
   const validUser = await bcrypt.compare(email + password, user.private_key);
 
@@ -79,8 +88,34 @@ export async function handleLogin(req, res){
     .json({message: "Invalid user credentials"});
   }
 
+  const token = generateToken(email);
+
+  res.cookie("auth_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
   return res
   .status(200)
-  .cookie("uid", user.private_key)
   .json({message: "Login Successful"})
 };
+
+export const handleLogout = async (req, res) => {
+  try {
+    res.clearCookie("auth_token", {
+      httpOnly: true,
+      secure: false,    
+      sameSite: "lax",
+    });
+
+    return res
+    .status(200)
+    .json({message: "User Logged Out successfully"});
+  } catch (error) {
+    return res
+    .status(500)
+    .json({message: "Logout failed"})
+  }
+}

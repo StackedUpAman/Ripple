@@ -2,8 +2,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
-import UserRouter from "./routes/user.js"
-import sql from "./db/postgres.js";
+import UserRouter from "./routes/user.routes.js"
 
 const app = express();
 const PORT = process.env.PORT || 4000;
