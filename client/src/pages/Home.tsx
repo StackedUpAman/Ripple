@@ -1,11 +1,14 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
 
-
-function Home() {
+export default function Home() {
+  useEffect(() => {  
+    document.title = 'Ripple';
+  }, [])
+  
   return (
-    <div>
-      <Title>Ripple</Title>
+    <div>      
       <div className="flex justify-between">          
           <button>
            <p 
@@ -19,10 +22,7 @@ function Home() {
       </div>
       <h6>        
         Landing Page to be implemented
-        {console.log('Entered Home')}
       </h6>
     </div>
   )
 }
-
-export default Home

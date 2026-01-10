@@ -1,47 +1,86 @@
-import { User } from "../model/user.js";
-import {generateAnionKey} from "../utilities/Hashing.js";
 import bcrypt from "bcrypt"
+import sql from "../db/postgres.js";
 
 export async function handleSignup(req, res){
   try {
-    const { email, password, private_key } = req.body;
-
-    // Check if user exists
-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existing) {
-      return res.status(409).json({ msg: "Email already registered" });
+    const { email, password, confirmPassword} = req.body;
+    
+    if(email == "" || password == "" || confirmPassword == ""){
+      return res
+      .status(400)
+      .json({message: "All fields are required"})
     }
 
-    //Generating Anion Key
-    const anion_key = await generateAnionKey(email, password); //password is hashed already
-    console.log("ANION", anion_key);
+    if(password != confirmPassword){
+      return res
+      .status(400)
+      .json({message: "Invalid user credentials"})
+    }
 
-    // Create user (store hashed password)
-    const result = await User.create({
-      email: email.toLowerCase().trim(),
-      anion_key: anion_key,
-    });
+    const [existingUser] = await sql`
+      SELECT id
+      FROM users
+      WHERE email = ${email}
+      LIMIT 1
+     `;
+
+     if(existingUser){
+      return res
+      .status(409)
+      .json({message: "User with this email already exists"});
+     }
+
+    const hashedPassword = await bcrypt.hash(password,10);
+
+    const private_key = await bcrypt.hash(email + password,10); 
+
+    await sql`
+    INSERT INTO users(email, password, private_key)
+    VALUES (${email}, ${hashedPassword}, ${private_key})
+    `;
 
     return res
       .status(201)
       .cookie("uid", private_key)
-      .json({ msg: "User created", anion_key: anion_key });
+      .json({ message: "User created", anion_key: private_key });
 
   } catch (err) {
     console.error("Signup error:", err);
-    return res.status(500).json({ msg: "Server error" });
+    return res
+    .status(500)
+    .json({ message: "Server error" });
   }
 }
 
 export async function handleLogin(req, res){
-  const { email, password, private_key } = req.body;
+  const { email, password} = req.body;
 
-  //checking if user exists
-  const user = await User.findOne({ email: email });
-  if (!user) return res.status(401).json({ msg: "user not found" });
+  const [user] = await sql`
+  SELECT *
+  FROM users
+  WHERE email = ${email}
+  LIMIT 1
+  `;
 
-  //validating with anion key
-  const valid = bcrypt.compare(email + password, user.anion_key);
+  if(!user){
+    return res
+    .status(401)
+    .json({message: "User not found"});
+  }
 
-  return res.cookie("uid", private_key).json({ valid: valid });
+  console.log(user);  
+
+  const validPassword = await bcrypt.compare(password, user.password);
+  const validUser = await bcrypt.compare(email + password, user.private_key);
+
+  if(!validUser || !validPassword){
+    return res
+    .status(401)
+    .json({message: "Invalid user credentials"});
+  }
+
+  return res
+  .status(200)
+  .cookie("uid", user.private_key)
+  .json({message: "Login Successful"})
 };

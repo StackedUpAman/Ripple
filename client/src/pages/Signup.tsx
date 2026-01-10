@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import bcrypt from "bcryptjs";
 import axios from "axios";
 
@@ -14,18 +14,15 @@ import {
 
 import { Link } from "react-router-dom";
 
-import { Navigate } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
-
-import { generatePrivateKey } from "../utilities/Hashing";
-
 export default function SignupForm() {
+  useEffect(() => {  
+    document.title = 'Signup';
+  }, [])
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState("");
-
-  const navigate = useNavigate();
-
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,28 +34,17 @@ export default function SignupForm() {
         return;
       }
 
-      const hashed_pass = await bcrypt.hash(password, 10);
-
-      const private_key = await generatePrivateKey(
-        email,
-        hashed_pass,
-        10
-      );
-
-      // sending details to backend
       const res = await axios.post(
         "http://localhost:4000/api/signup",
         {
           email,
-          password: hashed_pass,
-          private_key,
+          password,
+          confirmPassword
         },
         {
           withCredentials: true,
         }
       );
-
-      console.log(res.data.msg);
       setStatus("success");
     } catch (err) {
       console.error("Signup error:", err);
@@ -94,9 +80,18 @@ export default function SignupForm() {
           <Input
             id="password"
             type="password"
-            placeholder="••••••••"
+            placeholder="Enter password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <Label htmlFor="password">Confirm Password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            placeholder="Re-Enter Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
         </LabelInputContainer>
@@ -165,6 +160,7 @@ export default function SignupForm() {
               Signup failed. Check console.
             </p>
           )}
+          )
         </div>
       </form>
     </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import bcrypt from "bcryptjs";
 import axios from "axios";
 
@@ -14,9 +14,11 @@ import {
 
 import { Link } from "react-router-dom";
 
-import { generatePrivateKey } from "../utilities/Hashing";
-
 export default function LoginForm() {
+  useEffect(() => {  
+    document.title = 'Login';      
+    }, [])
+    
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
@@ -26,43 +28,21 @@ export default function LoginForm() {
     setStatus("loading");
 
     try {
-      // domain validation
       if (!email.endsWith("@nitk.edu.in")) {
         setStatus("invalid");
         return;
       }
 
-      // hashing password
-      const saltRounds = 10;
-      const hashed_pass = await bcrypt.hash(password, saltRounds);
-
-      // generating private key
-      const private_key = await generatePrivateKey(
-        email,
-        hashed_pass,
-        10
-      );
-
-      // sending to backend
       const res = await axios.post(
         "http://localhost:4000/api/login",
         {
           email,
-          password: hashed_pass,
-          private_key,
+          password
         },
         {
           withCredentials: true,
         }
       );
-
-      const { valid } = res.data;
-
-      if (valid) {
-        setStatus("success");
-      } else {
-        setStatus("error");
-      }
     } catch (err) {
       console.error("Login Error:", err);
       setStatus("error");
@@ -134,10 +114,7 @@ export default function LoginForm() {
           <button
             className="group/btn shadow-input relative flex h-10 w-full items-center justify-start space-x-2 rounded-md bg-gray-50 px-4 font-medium text-black dark:bg-zinc-900 dark:shadow-[0px_0px_1px_1px_#262626]"
             type="submit"
-          >
-
-            
-              
+          >              
             
             <IconBrandGithub className="w-4 h-4 text-neutral-800 dark:text-neutral-300" />
             <span className="text-sm text-neutral-700 dark:text-neutral-300">
