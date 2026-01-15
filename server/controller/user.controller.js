@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt"
 import sql from "../db/postgres.js";
 import { generateToken } from "../utilities/jwt.js";
+import { generateUsername, removeUsername } from "../services/username.service.js";
 
 export const handleSignup = async (req, res) => {
   try {
@@ -40,7 +41,11 @@ export const handleSignup = async (req, res) => {
     VALUES (${email}, ${hashedPassword}, ${private_key})
     `;
 
+    const username = await generateUsername();
+
     const token = generateToken(email);
+
+    res.cookie("username", username.username);
 
     res.cookie("auth_token", token, {
       httpOnly: true,
@@ -52,7 +57,8 @@ export const handleSignup = async (req, res) => {
     return res
       .status(201)      
       .json({ 
-        message: "User created", 
+        message: "User created",
+        username, 
         anion_key: private_key
      });
 
@@ -90,6 +96,10 @@ export const handleLogin = async (req, res) => {
 
   const token = generateToken(email);
 
+  const username = await generateUsername();
+
+  res.cookie("username", username.username);
+
   res.cookie("auth_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -99,21 +109,27 @@ export const handleLogin = async (req, res) => {
 
   return res
   .status(200)
-  .json({message: "Login Successful"})
+  .json({
+    message: "Login Successful",
+    username
+  })
 };
 
 export const handleLogout = async (req, res) => {
-  try {
+  try {    
+    await removeUsername(req.cookies?.username);
+    res.clearCookie("username");
     res.clearCookie("auth_token", {
       httpOnly: true,
       secure: false,    
       sameSite: "lax",
     });
 
+
     return res
     .status(200)
     .json({message: "User Logged Out successfully"});
-  } catch (error) {
+  } catch (error) {    
     return res
     .status(500)
     .json({message: "Logout failed"})
