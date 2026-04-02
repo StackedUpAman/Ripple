@@ -1,20 +1,25 @@
 import sql from "../db/postgres.js";
 
 export const generateUsername = async () => {
-  const [username] = await sql`
+  const [userRow] = await sql`
   SELECT * FROM usernames
   WHERE in_use = FALSE
   ORDER BY RANDOM()
   LIMIT 1;
   `
 
+  if (!userRow) {
+    // Fallback if the usernames table is empty or exhausted
+    return "user_" + Math.random().toString(36).substring(2, 8);
+  }
+
   await sql`
   UPDATE usernames
   SET in_use = ${true}, assigned_at = ${Date.now()}
-  WHERE id = ${username.id}
+  WHERE id = ${userRow.id}
   `
 
-  return username;
+  return userRow.username;
 }
 
 export const removeUsername = async (username) => {  

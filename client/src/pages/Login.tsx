@@ -1,7 +1,5 @@
-"use client"
-
 import React, { useState, useEffect } from "react";
-import bcrypt from "bcryptjs";
+
 import axios from "axios";
 
 import { Label } from "../components/ui/label";
@@ -13,12 +11,21 @@ import {
 } from "@tabler/icons-react";
 
 import { Link } from "react-router-dom";
+import { initSocket } from "../utilities/socket";
+import { useNavigate } from "react-router-dom";
+
 
 export default function LoginForm() {
+  const navigate = useNavigate();
+
   useEffect(() => {  
     document.title = 'Login';      
-    }, [])
-    
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/chat');
+    }
+  }, [navigate]);
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
@@ -34,7 +41,7 @@ export default function LoginForm() {
       }
 
       const res = await axios.post(
-        "http://localhost:4000/api/login",
+        "http://localhost:3000/auth/login",
         {
           email,
           password
@@ -43,6 +50,20 @@ export default function LoginForm() {
           withCredentials: true,
         }
       );
+
+      const user = res.data.user; 
+      const token = res.data.token;
+      if(!token) throw new Error("No token received");
+
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      setStatus("Success");
+      navigate('/chat')
+
+      initSocket(token);
+      
     } catch (err) {
       console.error("Login Error:", err);
       setStatus("error");

@@ -5,7 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
   "author": "",
   "license": "ISC",
@@ -20,9 +21,11 @@
     "fs": "^0.0.1-security",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.1",
+    "nodemailer": "^8.0.1",
     "nodemon": "^3.1.11",
     "pg": "^8.16.3",
     "postgres": "^3.4.8",
+    "socket.io": "^4.8.3",
     "supabase": "^2.72.3"
   }
 }

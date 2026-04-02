@@ -1,7 +1,4 @@
-"use client";
-
 import React, { useState, useEffect } from "react";
-import bcrypt from "bcryptjs";
 import axios from "axios";
 
 import { Label } from "../components/ui/label";
@@ -12,43 +9,82 @@ import {
   IconBrandGoogle,  
 } from "@tabler/icons-react";
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { initSocket } from "../utilities/socket";
 
 export default function SignupForm() {
+  const navigate = useNavigate();
+
   useEffect(() => {  
     document.title = 'Signup';
-  }, [])
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/chat');
+    }
+  }, [navigate]);
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpStep, setOtpStep] = useState(false);
   const [status, setStatus] = useState("");
+  const [ErrorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus("loading");
 
     try {
-      if (!email.endsWith("@nitk.edu.in")) {
-        setStatus("invalid");
-        return;
-      }
-
-      const res = await axios.post(
-        "http://localhost:4000/api/signup",
-        {
-          email,
-          password,
-          confirmPassword
-        },
-        {
-          withCredentials: true,
+      if (!otpStep) {
+        if (!email.endsWith("@nitk.edu.in")) {
+          setStatus("invalid");
+          setErrorMsg("Invalid email.")
+          return;
         }
-      );
-      setStatus("success");
+
+        await axios.post(
+          "http://localhost:3000/auth/signup",
+          {
+            email,
+            password,
+            confirmPassword
+          },
+          {
+            withCredentials: true,
+          }
+        );
+
+        setOtpStep(true);
+        setStatus("otp_sent");
+      } else {
+        const res = await axios.post(
+          "http://localhost:3000/auth/verify",
+          {
+            email,
+            otp
+          },
+          {
+            withCredentials: true,
+          }
+        );
+
+        const token = res.data.token;
+        if (!token) throw new Error("No token received");
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+
+        initSocket(token);
+        setStatus("success");
+        setTimeout(() => {
+          navigate("/chat");
+        }, 1500);
+      }
     } catch (err) {
       console.error("Signup error:", err);
       setStatus("error");
+      setErrorMsg(err.response.data.message);
     }
   };
 
@@ -63,45 +99,61 @@ export default function SignupForm() {
 
       <form className="my-8" onSubmit={handleSubmit}>
         {/* Email */}
-        <LabelInputContainer>
-          <Label htmlFor="email">Email Address</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="yourname@nitk.edu.in"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </LabelInputContainer>
+        {!otpStep ? (
+          <>
+            <LabelInputContainer>
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="yourname@nitk.edu.in"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </LabelInputContainer>
 
-        <LabelInputContainer>
-          <Label htmlFor="password">Enter Password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="Enter password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <Label htmlFor="password">Confirm Password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            placeholder="Re-Enter Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-        </LabelInputContainer>
+            <LabelInputContainer>
+              <Label htmlFor="password">Enter Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <Label htmlFor="password">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Re-Enter Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </LabelInputContainer>
+          </>
+        ) : (
+          <LabelInputContainer>
+            <Label htmlFor="otp">Enter Verification OTP</Label>
+            <Input
+              id="otp"
+              type="text"
+              placeholder="123456"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              required
+            />
+          </LabelInputContainer>
+        )}
 
         <button
           className="group/btn mt-4 relative block h-10 w-full rounded-md bg-gradient-to-br from-black to-neutral-600 font-medium text-white shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] disabled:opacity-60 dark:bg-zinc-800"
           type="submit"
           disabled={status === "loading"}
         >
-          {status === "loading" ? "Signing Up..." : "Sign Up →"}
+          {status === "loading" ? "Processing..." : (otpStep ? "Verify OTP →" : "Sign Up →")}
           <BottomGradient />
         </button>
               
@@ -147,8 +199,11 @@ export default function SignupForm() {
             </div>
 
         <div className="mt-4 text-sm">
+          {status === "otp_sent" && (
+            <p className="text-green-600">OTP sent to your email. Please verify!</p>
+          )}
           {status === "success" && (
-            <p className="text-green-600">Account created successfully</p>
+            <p className="text-green-600">Account created successfully! Redirecting...</p>
           )}
           {status === "invalid" && (
             <p className="text-yellow-600">
@@ -157,10 +212,9 @@ export default function SignupForm() {
           )}
           {status === "error" && (
             <p className="text-red-600">
-              Signup failed. Check console.
+              {ErrorMsg}
             </p>
           )}
-          )
         </div>
       </form>
     </div>
