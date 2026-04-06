@@ -10,7 +10,7 @@ import { campusOnly } from "../middleware/campusOnly.middleware.js";
 
 const router = Router();
 
-// router.use(campusOnly);
+router.use(campusOnly);
 
 // GROUP CHAT ENDPOINTS
 router.post('/group/create/:id', verifyJWT, createGroupChatRoom);

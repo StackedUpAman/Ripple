@@ -12,12 +12,12 @@ export const pairDirectChat = async (req, res) => {
         WHERE id = ${id}
     `;
 
-    if(!user) return res.status(404).json({message: "User not found"});
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     const myMemberId = generateMemberId(groupId, user.private_key);
 
     if (myMemberId === targetMemberId) {
-       return res.status(400).json({message: "Cannot chat with yourself."});
+      return res.status(400).json({ message: "Cannot chat with yourself." });
     }
 
     // Verify both are members of the group
@@ -27,7 +27,7 @@ export const pairDirectChat = async (req, res) => {
     `;
 
     if (members.length !== 2) {
-       return res.status(403).json({message: "Both users must be members of the group."});
+      return res.status(403).json({ message: "Both users must be members of the group." });
     }
 
     // Ensure predictable Ordering for Unique Constraint
@@ -45,12 +45,12 @@ export const pairDirectChat = async (req, res) => {
     req.io.emit(`direct_room:created:${groupId}`, room);
 
     return res.status(200).json({
-        roomId: room.id,
-        chat: room
+      roomId: room.id,
+      chat: room
     });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({message: "Something went wrong while pairing."});
+    return res.status(500).json({ message: "Something went wrong while pairing." });
   }
 }
 
@@ -64,7 +64,7 @@ export const getDirectChats = async (req, res) => {
         WHERE id = ${id}
     `;
 
-    if(!user) return res.status(404).json({message: "User not found"});
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     const myMemberId = generateMemberId(groupId, user.private_key);
 
@@ -73,22 +73,23 @@ export const getDirectChats = async (req, res) => {
         WHERE group_id = ${groupId} AND (member1_id = ${myMemberId} OR member2_id = ${myMemberId})
     `;
 
+
     // Augment with friendly anonymous target name
     const augmentedChats = chats.map(chat => {
-       const targetMemberId = chat.member1_id === myMemberId ? chat.member2_id : chat.member1_id;
-       return {
-         ...chat,
-         targetMemberId,
-         targetName: generateAnonName(targetMemberId)
-       }
+      const targetMemberId = chat.member1_id === myMemberId ? chat.member2_id : chat.member1_id;
+      return {
+        ...chat,
+        targetMemberId,
+        targetName: generateAnonName(targetMemberId)
+      }
     });
 
     return res.status(200).json({
-        chats: augmentedChats
+      chats: augmentedChats
     });
-  } catch(error) {
+  } catch (error) {
     console.error(error);
-    return res.status(500).json({message: "Failed to load chats."});
+    return res.status(500).json({ message: "Failed to load chats." });
   }
 }
 
@@ -97,9 +98,9 @@ export const leaveDirectChat = async (req, res) => {
     const { id } = req.params;
     const { chatId } = req.body;
 
-    return res.status(200).json({message: "Leaving specific 1v1 history is handled via frontend closing."});
+    return res.status(200).json({ message: "Leaving specific 1v1 history is handled via frontend closing." });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({message: "Something went wrong while leaving chat"});
+    return res.status(500).json({ message: "Something went wrong while leaving chat" });
   }
 };

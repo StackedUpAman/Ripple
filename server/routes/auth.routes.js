@@ -5,7 +5,7 @@ import { campusOnly } from "../middleware/campusOnly.middleware.js";
 
 const router = Router();
 
-// router.use(campusOnly);
+router.use(campusOnly);
 
 router.post("/signup",handleSignup);
 router.post("/verify", verifyOTP);

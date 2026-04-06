@@ -36,7 +36,7 @@ app.use("/auth",authRouter)
 app.use("/groupchat",chatRouter)
 app.use("/directChat",chatRouter)
 
-startRoomExpiryJob();
+// startRoomExpiryJob();
 
 server.listen(3000, () => {
   console.log(`Server running on port ${PORT}`);

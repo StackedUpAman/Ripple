@@ -1,6 +1,6 @@
 // pages/groupChat.tsx
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { ChatApp } from './ChatApp';
 import { initSocket, getSocket } from '../utilities/socket';
 import { connectSocket } from '../utilities/connect.socket';
@@ -14,50 +14,45 @@ type User = {
 };
 
 export default function GroupChatPage() {
-  connectSocket();
-  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+  const userStr = localStorage.getItem('user');
+
+  // Instant redirect before rendering any chat framework or connecting sockets
+  if (!token || token === 'undefined' || !userStr || userStr === 'undefined') {
+    return <Navigate to="/login" replace />;
+  }
+
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     document.title = 'Chat - Ripple';
-    
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-
-    if (!token || !userStr) {
-      navigate('/login');
-      return;
-    }
 
     try {
       const userData = JSON.parse(userStr);
       setUser(userData);
       
       // Initialize socket if not already connected
+      connectSocket();
       if (!getSocket()?.connected) {
         initSocket(token);
       }
     } catch (error) {
       console.error('Failed to parse user data:', error);
-      navigate('/login');
-    } finally {
-      setIsLoading(false);
+      // If user strings are corrupted somehow, clear and force reload
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
     }
-  }, [navigate]);
+  }, [token, userStr]);
 
-  // Loading state
-  if (isLoading) {
+  // Loading state while parsing
+  if (!user) {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.spinner} />
         <p style={styles.loadingText}>Loading chat...</p>
       </div>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   const userId = user.id || user._id || '';

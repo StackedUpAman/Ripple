@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { getSocket } from '../utilities/socket'; 
+import { getSocket } from '../utilities/socket';
+import { UUID } from 'crypto';
 
 export type Group = {
   id: string;
@@ -33,6 +34,7 @@ export type Message = {
   timestamp: string;
   roomId?: string; // For groups
   chatId?: string; // For direct
+  is_toxic?: boolean;
 };
 
 const API_BASE = 'http://localhost:3000/groupchat'; // using the router mount
@@ -87,14 +89,14 @@ export const useRooms = (currentUserId: string) => {
     });
 
     socket.on('room:member:left', ({ roomId, memberId }: { roomId: string; memberId: string }) => {
-       setGroups((prev) =>
-         prev.map((g) => {
-           if (g.id === roomId) {
-             return { ...g, members: (g.members || []).filter((m) => m.id !== memberId) };
-           }
-           return g;
-         })
-       );
+      setGroups((prev) =>
+        prev.map((g) => {
+          if (g.id === roomId) {
+            return { ...g, members: (g.members || []).filter((m) => m.id !== memberId) };
+          }
+          return g;
+        })
+      );
     });
 
     socket.on('message:received', (message: Message) => {
@@ -109,7 +111,7 @@ export const useRooms = (currentUserId: string) => {
     // The event is emitted as `direct_room:created:${groupId}` but we might not have dynamic listeners easily 
     // unless we attach them per group. To keep it simple, we can re-fetch chats periodically or use wildcard, 
     // but the backend emits: req.io.emit(`direct_room:created:${groupId}`, room);
-    
+
     return () => {
       socket.off('room:created');
       socket.off('room:member:joined');
@@ -119,30 +121,30 @@ export const useRooms = (currentUserId: string) => {
   }, []);
 
   const startDirectChatListener = useCallback((groupId: string) => {
-     const socket = getSocket();
-     if (!socket) return;
-     const evt = `direct_room:created:${groupId}`;
-     socket.off(evt); // clear previous to prevent duplicates
-     socket.on(evt, (chat: any) => {
-        // Simple heuristic: refetch direct chats for this group to get augmented names securely
-        fetchDirectChats(currentUserId, groupId);
-     });
-     
-     const msgEvt = `direct_message:received`;
-     // We actually emit direct_message:received:${chatId} in backend, so we need to listen when a chat is opened.
+    const socket = getSocket();
+    if (!socket) return;
+    const evt = `direct_room:created:${groupId}`;
+    socket.off(evt); // clear previous to prevent duplicates
+    socket.on(evt, (chat: any) => {
+      // Simple heuristic: refetch direct chats for this group to get augmented names securely
+      fetchDirectChats(currentUserId, groupId);
+    });
+
+    const msgEvt = `direct_message:received`;
+    // We actually emit direct_message:received:${chatId} in backend, so we need to listen when a chat is opened.
   }, [currentUserId]);
 
   const startDirectMessageListener = useCallback((chatId: string) => {
-     const socket = getSocket();
-     if (!socket) return;
-     const evt = `direct_message:received:${chatId}`;
-     socket.off(evt);
-     socket.on(evt, (message: Message) => {
-       setMessages((prev) => ({
-         ...prev,
-         [chatId]: [...(prev[chatId] || []), message],
-       }));
-     });
+    const socket = getSocket();
+    if (!socket) return;
+    const evt = `direct_message:received:${chatId}`;
+    socket.off(evt);
+    socket.on(evt, (message: Message) => {
+      setMessages((prev) => ({
+        ...prev,
+        [chatId]: [...(prev[chatId] || []), message],
+      }));
+    });
   }, []);
 
   const fetchDirectChats = useCallback(async (userId: string, groupId: string) => {
@@ -160,31 +162,88 @@ export const useRooms = (currentUserId: string) => {
   const fetchGroupMessages = useCallback(async (userId: string, groupId: string) => {
     try {
       const res = await axios.get(`${API_BASE}/group/${userId}/${groupId}/getmessages`, { withCredentials: true });
-      setMessages((prev) => ({ ...prev, [groupId]: res.data.messages || [] }));
-      return res.data.messages;
+      const processedMessages = (res.data.messages || []).map((msg: Message) => 
+        msg.is_toxic ? { ...msg, text: '🚫 This message was removed for violating community guidelines.' } : msg
+      );
+      setMessages((prev) => ({ ...prev, [groupId]: processedMessages }));
+      return processedMessages;
     } catch (err) {
       console.error('Failed to fetch group messages:', err);
       return [];
     }
   }, []);
+  useEffect(() => {
+    // Socket may not be ready immediately on mount — poll until available
+    let socket = getSocket();
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const registerListener = (s: ReturnType<typeof getSocket>) => {
+      if (!s) return;
+
+      s.on('message_retracted', (data: { id: string; chatId: string }) => {
+        console.log('🚨 message_retracted received:', data);
+        console.log(messages);
+        setMessages((prev) => {
+          // Only update the specific chat that contains the retracted message
+          const targetKey = data.chatId;
+          if (!prev[targetKey]) return prev; // nothing to update
+
+          return {
+            ...prev,
+            [targetKey]: prev[targetKey].map((msg) =>
+              msg.id === data.id
+                ? { ...msg, text: '🚫 This message was removed for violating community guidelines.' }
+                : msg
+            ),
+          };
+        });
+      });
+    };
+
+    if (socket) {
+      registerListener(socket);
+    } else {
+      // Retry every 500ms until socket is initialized
+      intervalId = setInterval(() => {
+        socket = getSocket();
+        if (socket) {
+          clearInterval(intervalId!);
+          intervalId = null;
+          registerListener(socket);
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      const s = getSocket();
+      if (s) s.off('message_retracted');
+    };
+  }, []);
 
   const fetchDirectMessages = useCallback(async (userId: string, groupId: string, chatId: string) => {
     try {
       const res = await axios.get(`${API_BASE}/direct/${userId}/${groupId}/${chatId}/getmessages`, { withCredentials: true });
-      setMessages((prev) => ({ ...prev, [chatId]: res.data.messages || [] }));
+      console.log("fetchdirect", messages);
+      const processedMessages = (res.data.messages || []).map((msg: Message) => 
+        msg.is_toxic ? { ...msg, text: '🚫 This message was removed for violating community guidelines.' } : msg
+      );
+      setMessages((prev) => ({ ...prev, [chatId]: processedMessages }));
       startDirectMessageListener(chatId);
-      return res.data.messages;
+      return processedMessages;
     } catch (err) {
       console.error('Failed to fetch direct messages:', err);
       return [];
     }
   }, [startDirectMessageListener]);
 
+
+
   const createGroup = useCallback(async (userId: string, roomName: string, maxCapacity?: number) => {
     try {
       const res = await axios.post(`${API_BASE}/group/create/${userId}`, { room_name: roomName, max_capacity: maxCapacity }, { withCredentials: true });
       const newGroup = res.data.chat_room[0];
-      setGroups(prev => [...prev, {...newGroup, isMember: true}]);
+      setGroups(prev => [...prev, { ...newGroup, isMember: true }]);
       return newGroup;
     } catch (err) {
       console.error('Failed to create group:', err);
