@@ -37,7 +37,7 @@ export type Message = {
   is_toxic?: boolean;
 };
 
-const API_BASE = 'http://localhost:3000/groupchat'; // using the router mount
+const API_BASE = import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/groupchat` : 'http://localhost:3000/groupchat';
 
 export const useRooms = (currentUserId: string) => {
   const [groups, setGroups] = useState<Group[]>([]);

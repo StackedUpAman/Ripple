@@ -1,11 +1,12 @@
 import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
+const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export const initSocket = (token: string) => {
   if (socket) return socket;
 
-  socket = io("http://localhost:3000", {
+  socket = io(apiBase, {
     transports: ["websocket"],
     auth: { token },
   });
