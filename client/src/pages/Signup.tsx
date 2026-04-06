@@ -43,8 +43,9 @@ export default function SignupForm() {
           return;
         }
 
+        const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
         await axios.post(
-          "http://localhost:3000/auth/signup",
+          `${apiBase}/auth/signup`,
           {
             email,
             password,
@@ -58,8 +59,9 @@ export default function SignupForm() {
         setOtpStep(true);
         setStatus("otp_sent");
       } else {
+        const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
         const res = await axios.post(
-          "http://localhost:3000/auth/verify",
+          `${apiBase}/auth/verify`,
           {
             email,
             otp

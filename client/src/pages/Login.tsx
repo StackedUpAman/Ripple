@@ -40,8 +40,9 @@ export default function LoginForm() {
         return;
       }
 
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
       const res = await axios.post(
-        "http://localhost:3000/auth/login",
+        `${apiBase}/auth/login`,
         {
           email,
           password
