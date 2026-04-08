@@ -35,32 +35,47 @@ export const handleSignup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const private_key = await bcrypt.hash(email + password, 10);
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedOtp = await bcrypt.hash(otp, 10);
+    const username = await generateUsername();
 
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
+    let user;
     if (existingUser && !existingUser.is_verified) {
-      await sql`
+      const [updatedUser] = await sql`
         UPDATE users
         SET password = ${hashedPassword},
             private_key = ${private_key},
-            otp = ${hashedOtp},
-            otp_expiry = ${otpExpiry}
+            is_verified = true,
+            username = ${username},
+            otp = NULL,
+            otp_expiry = NULL
         WHERE email = ${email}
+        RETURNING *
       `;
+      user = updatedUser;
     } else {
-      await sql`
-        INSERT INTO users(email, password, private_key, otp, otp_expiry, is_verified)
-        VALUES (${email}, ${hashedPassword}, ${private_key}, ${hashedOtp}, ${otpExpiry}, false)
+      const [newUser] = await sql`
+        INSERT INTO users(email, password, private_key, is_verified, username)
+        VALUES (${email}, ${hashedPassword}, ${private_key}, true, ${username})
+        RETURNING *
       `;
+      user = newUser;
     }
 
-    await sendMail({ email, otp });
+    const token = generateToken(email);
+
+    res.cookie("username", username);
+    res.cookie("auth_token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     return res.status(201).json({
-      message: "OTP sent to your email. Please verify to complete signup.",
-      email,
+      message: "Signup successful",
+      user,
+      token,
+      username,
+      anion_key: user.private_key,
     });
   } catch (err) {
     console.error(err);

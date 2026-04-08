@@ -26,8 +26,6 @@ export default function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpStep, setOtpStep] = useState(false);
   const [status, setStatus] = useState("");
   const [ErrorMsg, setErrorMsg] = useState("");
 
@@ -36,57 +34,40 @@ export default function SignupForm() {
     setStatus("loading");
 
     try {
-      if (!otpStep) {
-        if (!email.endsWith("@nitk.edu.in")) {
-          setStatus("invalid");
-          setErrorMsg("Invalid email.")
-          return;
-        }
-
-        const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-        await axios.post(
-          `${apiBase}/auth/signup`,
-          {
-            email,
-            password,
-            confirmPassword
-          },
-          {
-            withCredentials: true,
-          }
-        );
-
-        setOtpStep(true);
-        setStatus("otp_sent");
-      } else {
-        const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-        const res = await axios.post(
-          `${apiBase}/auth/verify`,
-          {
-            email,
-            otp
-          },
-          {
-            withCredentials: true,
-          }
-        );
-
-        const token = res.data.token;
-        if (!token) throw new Error("No token received");
-
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-
-        initSocket(token);
-        setStatus("success");
-        setTimeout(() => {
-          navigate("/chat");
-        }, 1500);
+      if (!email.endsWith("@nitk.edu.in")) {
+        setStatus("invalid");
+        setErrorMsg("Invalid email.");
+        return;
       }
+
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+      const res = await axios.post(
+        `${apiBase}/auth/signup`,
+        {
+          email,
+          password,
+          confirmPassword,
+        },
+        {
+          withCredentials: true,
+        }
+      );
+
+      const token = res.data.token;
+      if (!token) throw new Error("No token received");
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+
+      initSocket(token);
+      setStatus("success");
+      setTimeout(() => {
+        navigate("/chat");
+      }, 1500);
     } catch (err) {
       console.error("Signup error:", err);
       setStatus("error");
-      setErrorMsg(err.response.data.message);
+      setErrorMsg(err.response?.data?.message || "An error occurred");
     }
   };
 
@@ -101,122 +82,72 @@ export default function SignupForm() {
 
       <form className="my-8" onSubmit={handleSubmit}>
         {/* Email */}
-        {!otpStep ? (
-          <>
-            <LabelInputContainer>
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="yourname@nitk.edu.in"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </LabelInputContainer>
+        <LabelInputContainer>
+          <Label htmlFor="email">Email Address</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="yourname@nitk.edu.in"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </LabelInputContainer>
 
-            <LabelInputContainer>
-              <Label htmlFor="password">Enter Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <Label htmlFor="password">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Re-Enter Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </LabelInputContainer>
-          </>
-        ) : (
-          <LabelInputContainer>
-            <Label htmlFor="otp">Enter Verification OTP</Label>
-            <Input
-              id="otp"
-              type="text"
-              placeholder="123456"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              required
-            />
-          </LabelInputContainer>
-        )}
+        <LabelInputContainer>
+          <Label htmlFor="password">Enter Password</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <Label htmlFor="password">Confirm Password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            placeholder="Re-Enter Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+        </LabelInputContainer>
 
         <button
           className="group/btn mt-4 relative block h-10 w-full rounded-md bg-gradient-to-br from-black to-neutral-600 font-medium text-white shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] disabled:opacity-60 dark:bg-zinc-800"
           type="submit"
           disabled={status === "loading"}
         >
-          {status === "loading" ? "Processing..." : (otpStep ? "Verify OTP →" : "Sign Up →")}
+          {status === "loading" ? "Processing..." : "Sign Up →"}
           <BottomGradient />
         </button>
-              
-        <div className="my-8 h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
-            
-            <div className="flex justify-between">
-                <p className = "mb-3 text-sm font-medium leading-none text-black dark:text-white peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Already have an account? 
-                </p>
-                <button>
-                  <p 
-                    className = "mb-3 text-sm font-medium leading-none text-black dark:text-white peer-disabled:cursor-not-allowed peer-disabled:opacity-70"                                                                                                                                                                 
-                  >               
-                    <Link to={"/login"}>
-                      Login     
-                    </Link>
-                                                 
-                  </p>
-                </button>
-              </div>
-            
-            <div className="flex flex-col space-y-4">
-              <button
-                className="group/btn shadow-input relative flex h-10 w-full items-center justify-start space-x-2 rounded-md bg-gray-50 px-4 font-medium text-black dark:bg-zinc-900 dark:shadow-[0px_0px_1px_1px_#262626]"
-                type="submit"
-              >
-                <IconBrandGithub className="w-4 h-4 text-neutral-800 dark:text-neutral-300" />
-                <span className="text-sm text-neutral-700 dark:text-neutral-300">
-                  GitHub
-                </span>
-                <BottomGradient />
-              </button>
-              <button
-                className="group/btn shadow-input relative flex h-10 w-full items-center justify-start space-x-2 rounded-md bg-gray-50 px-4 font-medium text-black dark:bg-zinc-900 dark:shadow-[0px_0px_1px_1px_#262626]"
-                type="submit"
-              >
-                <IconBrandGoogle className="w-4 h-4 text-neutral-800 dark:text-neutral-300" />
-                <span className="text-sm text-neutral-700 dark:text-neutral-300">
-                  Google
-                </span>
-              <BottomGradient />
-              </button>          
-            </div>
 
+        <div className="my-8 h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
+
+        <div className="flex justify-between">
+          <p className="mb-3 text-sm font-medium leading-none text-black dark:text-white peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Already have an account?
+          </p>
+          <button>
+            <p className="mb-3 text-sm font-medium leading-none text-black dark:text-white peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <Link to={"/login"}>Login</Link>
+            </p>
+          </button>
+        </div>
         <div className="mt-4 text-sm">
-          {status === "otp_sent" && (
-            <p className="text-green-600">OTP sent to your email. Please verify!</p>
-          )}
           {status === "success" && (
-            <p className="text-green-600">Account created successfully! Redirecting...</p>
+            <p className="text-green-600">
+              Account created successfully! Redirecting...
+            </p>
           )}
           {status === "invalid" && (
             <p className="text-yellow-600">
               Only @nitk.edu.in emails are allowed
             </p>
           )}
-          {status === "error" && (
-            <p className="text-red-600">
-              {ErrorMsg}
-            </p>
-          )}
+          {status === "error" && <p className="text-red-600">{ErrorMsg}</p>}
         </div>
       </form>
     </div>

@@ -84,10 +84,6 @@ const LandingPage = () => {
 
             <div className="space-y-4">
               <ActionButton
-                label="Continue Anonymously"
-                onClick={() => (window.location.href = "/chat")}
-              />
-              <ActionButton
                 label="Login"
                 onClick={() => (window.location.href = "/login")}
               />
