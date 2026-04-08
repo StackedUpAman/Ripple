@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
-
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
@@ -7,7 +8,8 @@ const transporter = nodemailer.createTransport({
     auth:{
         user: process.env.USER_MAIL,
         pass: process.env.MAIL_PASS
-    }
+    },
+    family: 4
 });
   
 export const sendMail = async ({
