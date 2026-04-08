@@ -23,8 +23,7 @@ initSocket(server);
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",
-      "https://chatripple.netlify.app"
+      process.env.CLIENT_URL
     ],
     credentials: true,
   })
